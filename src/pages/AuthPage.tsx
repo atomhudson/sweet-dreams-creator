@@ -8,15 +8,12 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
-
-
 const AuthPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { signUp, signIn, user } = useAuth();
   const initialMode = searchParams.get("mode") === "register" ? "register" : "login";
   const [mode, setMode] = useState<"login" | "register">(initialMode);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [form, setForm] = useState({

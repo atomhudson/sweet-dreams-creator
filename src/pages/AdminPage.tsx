@@ -84,9 +84,29 @@ const AdminPage = () => {
       supabase.from("lands").select("*").order("created_at", { ascending: false }),
     ]);
 
+    // Log errors so admin can see if RLS is blocking access
+    if (usersRes.error) {
+      console.error("Admin: Error fetching profiles:", usersRes.error);
+      toast({ title: "Error fetching users", description: usersRes.error.message, variant: "destructive" });
+    }
+    if (contractsRes.error) {
+      console.error("Admin: Error fetching contracts:", contractsRes.error);
+      toast({ title: "Error fetching contracts", description: contractsRes.error.message, variant: "destructive" });
+    }
+    if (landsRes.error) {
+      console.error("Admin: Error fetching lands:", landsRes.error);
+      toast({ title: "Error fetching lands", description: landsRes.error.message, variant: "destructive" });
+    }
+
     const usersData = (usersRes.data || []) as ProfileRow[];
     const contractsData = (contractsRes.data || []) as ContractRow[];
     const landsData = (landsRes.data || []) as LandRow[];
+
+    console.log("Admin fetchAll results:", {
+      users: usersData.length,
+      contracts: contractsData.length,
+      lands: landsData.length,
+    });
 
     // Build name map from profiles
     const nameMap: Record<string, string> = {};
