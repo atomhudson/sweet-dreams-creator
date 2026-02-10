@@ -1,73 +1,79 @@
-# Welcome to your Lovable project
+# 🌱 Bhoomi Bandhan
 
-## Project info
+**Empowering Farmers, Connecting Markets — Secure Your Harvest, Grow Your Future.**
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Bhoomi Bandhan is a contract farming platform that bridges the gap between farmers and contractors. Farmers can list their lands, receive contract proposals, and manage agreements — while contractors can browse available lands and send proposals. Admins oversee the entire ecosystem with user management, contract approvals, and system-wide dashboards.
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+- **Farmer Dashboard** — Add and manage lands, view contracts, track notifications
+- **Contractor Dashboard** — Browse available lands, send contract proposals, manage proposals
+- **Admin Panel** — User management, contract approvals, land oversight, add contractor accounts
+- **Role-Based Access Control** — Secure RLS policies with farmer / contractor / admin roles
+- **Real-Time Notifications** — Stay updated on contract status changes and proposals
+- **Responsive Design** — Works seamlessly on desktop and mobile
 
-**Use Lovable**
+## Tech Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- **Frontend** — React, TypeScript, Vite
+- **UI** — shadcn/ui, Tailwind CSS, Lucide Icons
+- **Backend** — Supabase (Auth, Database, Row Level Security)
+- **State Management** — React Query, React Context
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+### Prerequisites
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js & npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- A Supabase project with the migrations applied
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### Setup
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clone the repository
+git clone https://github.com/atomhudson/sweet-dreams-creator
+cd sweet-dreams-creator
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Set up environment variables
+# Create a .env file with your Supabase credentials:
+# VITE_SUPABASE_URL=your_supabase_url
+# VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Database Setup
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Run the SQL migrations in your Supabase Dashboard → SQL Editor in order:
 
-**Use GitHub Codespaces**
+1. `supabase/migrations/20260210093320_*.sql` — Core schema (tables, RLS, triggers)
+2. `supabase/migrations/20260210093412_*.sql` — Notification policy updates
+3. `supabase/migrations/20260210100000_*.sql` — Cross-role profile visibility
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## User Roles
 
-## What technologies are used for this project?
+| Role | Description |
+|------|-------------|
+| **Farmer** | Registers via the auth page. Can add lands, view/create contracts, receive proposals. |
+| **Contractor** | Created by admin. Can browse available lands, send proposals, manage contracts. |
+| **Admin** | Created via SQL. Oversees all users, contracts, lands. Can approve/reject contracts. |
 
-This project is built with:
+## Project Structure
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```
+src/
+├── components/       # Reusable UI components (Header, Footer, ProtectedRoute)
+├── contexts/         # AuthContext for authentication state
+├── hooks/            # Custom React hooks
+├── integrations/     # Supabase client & types
+├── pages/            # Route pages (Dashboard, AdminPage, ContractsPage, etc.)
+└── assets/           # Static images
+```
 
-## How can I deploy this project?
+## License
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+This project is open source.
