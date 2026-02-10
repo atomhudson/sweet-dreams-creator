@@ -14,16 +14,226 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contracts: {
+        Row: {
+          admin_notes: string
+          contractor_id: string
+          created_at: string
+          crop_type: string
+          description: string
+          end_date: string | null
+          farmer_id: string
+          id: string
+          land_id: string | null
+          price: number
+          quantity: string
+          start_date: string | null
+          status: Database["public"]["Enums"]["contract_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string
+          contractor_id: string
+          created_at?: string
+          crop_type?: string
+          description?: string
+          end_date?: string | null
+          farmer_id: string
+          id?: string
+          land_id?: string | null
+          price?: number
+          quantity?: string
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string
+          contractor_id?: string
+          created_at?: string
+          crop_type?: string
+          description?: string
+          end_date?: string | null
+          farmer_id?: string
+          id?: string
+          land_id?: string | null
+          price?: number
+          quantity?: string
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_land_id_fkey"
+            columns: ["land_id"]
+            isOneToOne: false
+            referencedRelation: "lands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lands: {
+        Row: {
+          area: string
+          created_at: string
+          crop_feasibility: string
+          id: string
+          is_lended: boolean
+          land_quality: string
+          location: string
+          pin_code: string
+          price: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          area: string
+          created_at?: string
+          crop_feasibility?: string
+          id?: string
+          is_lended?: boolean
+          land_quality?: string
+          location: string
+          pin_code?: string
+          price?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          area?: string
+          created_at?: string
+          crop_feasibility?: string
+          id?: string
+          is_lended?: boolean
+          land_quality?: string
+          location?: string
+          pin_code?: string
+          price?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          aadhaar_number: string
+          address: string
+          created_at: string
+          full_name: string
+          id: string
+          is_approved: boolean
+          phone_number: string
+          pin_code: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aadhaar_number?: string
+          address?: string
+          created_at?: string
+          full_name?: string
+          id?: string
+          is_approved?: boolean
+          phone_number?: string
+          pin_code?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aadhaar_number?: string
+          address?: string
+          created_at?: string
+          full_name?: string
+          id?: string
+          is_approved?: boolean
+          phone_number?: string
+          pin_code?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "farmer" | "contractor" | "admin"
+      contract_status:
+        | "draft"
+        | "submitted"
+        | "approved"
+        | "rejected"
+        | "active"
+        | "completed"
+        | "terminated"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +360,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["farmer", "contractor", "admin"],
+      contract_status: [
+        "draft",
+        "submitted",
+        "approved",
+        "rejected",
+        "active",
+        "completed",
+        "terminated",
+      ],
+    },
   },
 } as const
