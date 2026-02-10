@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  FileText, Plus, ChevronDown, ChevronUp, User, Filter, Inbox, Send as SendIcon,
+} from "lucide-react";
 
 interface Contract {
   id: string;
@@ -21,9 +23,13 @@ interface Contract {
   end_date: string | null;
   farmer_id: string;
   contractor_id: string;
+  land_id: string | null;
   created_at: string;
   admin_notes: string;
+  counterparty_name?: string;
 }
+
+type StatusFilter = "all" | "submitted" | "approved" | "active" | "completed" | "rejected" | "terminated" | "draft";
 
 const ContractsPage = () => {
   const { user, role } = useAuth();
@@ -31,13 +37,13 @@ const ContractsPage = () => {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [form, setForm] = useState({
     title: "",
     description: "",
     crop_type: "",
     quantity: "",
     price: "",
-    counterparty_email: "",
     start_date: "",
     end_date: "",
   });
@@ -45,6 +51,7 @@ const ContractsPage = () => {
   const fetchContracts = async () => {
     if (!user) return;
     setLoading(true);
+
     let query;
     if (role === "admin") {
       query = supabase.from("contracts").select("*").order("created_at", { ascending: false });
@@ -53,12 +60,46 @@ const ContractsPage = () => {
     } else {
       query = supabase.from("contracts").select("*").eq("contractor_id", user.id).order("created_at", { ascending: false });
     }
+
     const { data, error } = await query;
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      setContracts((data || []) as Contract[]);
+      setLoading(false);
+      return;
     }
+
+    const contractsData = (data || []) as Contract[];
+
+    // Fetch counterparty names
+    const counterpartyIds = contractsData.map((c) =>
+      role === "farmer" ? c.contractor_id : c.farmer_id
+    );
+    const uniqueIds = [...new Set(counterpartyIds)];
+
+    let nameMap: Record<string, string> = {};
+    if (uniqueIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", uniqueIds);
+      if (profiles) {
+        profiles.forEach((p: any) => {
+          nameMap[p.user_id] = p.full_name;
+        });
+      }
+    }
+
+    const enriched = contractsData.map((c) => ({
+      ...c,
+      counterparty_name:
+        role === "farmer"
+          ? nameMap[c.contractor_id] || "Unknown Contractor"
+          : role === "contractor"
+            ? nameMap[c.farmer_id] || "Unknown Farmer"
+            : `F: ${nameMap[c.farmer_id] || "—"} / C: ${nameMap[c.contractor_id] || "—"}`,
+    }));
+
+    setContracts(enriched);
     setLoading(false);
   };
 
@@ -70,7 +111,6 @@ const ContractsPage = () => {
     e.preventDefault();
     if (!user) return;
 
-    // For simplicity, use a placeholder contractor/farmer id
     const contractData: any = {
       title: form.title,
       description: form.description,
@@ -96,12 +136,15 @@ const ContractsPage = () => {
     } else {
       toast({ title: "Contract submitted!" });
       setShowCreate(false);
-      setForm({ title: "", description: "", crop_type: "", quantity: "", price: "", counterparty_email: "", start_date: "", end_date: "" });
+      setForm({ title: "", description: "", crop_type: "", quantity: "", price: "", start_date: "", end_date: "" });
       fetchContracts();
     }
   };
 
-  const handleStatusUpdate = async (contractId: string, newStatus: "draft" | "submitted" | "approved" | "rejected" | "active" | "completed" | "terminated") => {
+  const handleStatusUpdate = async (
+    contractId: string,
+    newStatus: "draft" | "submitted" | "approved" | "rejected" | "active" | "completed" | "terminated"
+  ) => {
     const { error } = await supabase
       .from("contracts")
       .update({ status: newStatus })
@@ -117,11 +160,11 @@ const ContractsPage = () => {
   const statusColor = (status: string) => {
     const colors: Record<string, string> = {
       draft: "bg-muted text-muted-foreground",
-      submitted: "bg-accent/20 text-accent",
+      submitted: "bg-amber-100 text-amber-700",
       approved: "bg-primary/20 text-primary",
       rejected: "bg-destructive/20 text-destructive",
       active: "bg-primary text-primary-foreground",
-      completed: "bg-secondary text-secondary-foreground",
+      completed: "bg-emerald-100 text-emerald-700",
       terminated: "bg-destructive text-destructive-foreground",
     };
     return colors[status] || "bg-muted text-muted-foreground";
@@ -131,6 +174,22 @@ const ContractsPage = () => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
   };
 
+  const filteredContracts = contracts.filter(
+    (c) => statusFilter === "all" || c.status === statusFilter
+  );
+
+  // Separate incoming proposals for farmers
+  const incomingProposals =
+    role === "farmer"
+      ? filteredContracts.filter((c) => c.status === "submitted" && c.contractor_id !== user?.id)
+      : [];
+  const otherContracts =
+    role === "farmer"
+      ? filteredContracts.filter((c) => !(c.status === "submitted" && c.contractor_id !== user?.id))
+      : filteredContracts;
+
+  const statusFilters: StatusFilter[] = ["all", "submitted", "approved", "active", "completed", "rejected", "terminated"];
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -138,13 +197,30 @@ const ContractsPage = () => {
         <div className="max-w-3xl mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-3xl font-bold text-foreground font-display underline underline-offset-8 decoration-primary">
-              Contracts
+              {role === "contractor" ? "My Proposals" : role === "admin" ? "All Contracts" : "Contracts"}
             </h1>
             {role !== "admin" && (
               <Button size="sm" onClick={() => setShowCreate(!showCreate)}>
                 <Plus className="w-4 h-4 mr-1" /> New Contract
               </Button>
             )}
+          </div>
+
+          {/* Status filter pills */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            <Filter className="w-4 h-4 text-muted-foreground self-center mr-1" />
+            {statusFilters.map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full border capitalize transition-colors ${statusFilter === s
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border hover:border-primary/50"
+                  }`}
+              >
+                {s === "all" ? "All" : s}
+              </button>
+            ))}
           </div>
 
           {/* Create Contract Form */}
@@ -193,17 +269,76 @@ const ContractsPage = () => {
             </form>
           )}
 
+          {/* Incoming Proposals Banner (Farmer only) */}
+          {role === "farmer" && incomingProposals.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Inbox className="w-5 h-5 text-accent" />
+                <h2 className="text-lg font-semibold text-foreground">
+                  Incoming Proposals ({incomingProposals.length})
+                </h2>
+              </div>
+              <div className="space-y-3">
+                {incomingProposals.map((contract) => (
+                  <div key={contract.id} className="bg-accent/5 rounded-xl border-2 border-accent/20 shadow-sm">
+                    <button
+                      className="w-full flex items-center justify-between p-4 text-left"
+                      onClick={() => setExpandedId(expandedId === contract.id ? null : contract.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <SendIcon className="w-5 h-5 text-accent" />
+                        <div>
+                          <p className="font-semibold text-foreground">{contract.title}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {contract.counterparty_name} • {contract.crop_type} • ₹{contract.price.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700">
+                          Proposal
+                        </span>
+                        {expandedId === contract.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </div>
+                    </button>
+
+                    {expandedId === contract.id && (
+                      <div className="px-4 pb-4 border-t border-accent/10 pt-3 space-y-2 text-sm">
+                        <p><span className="font-medium">Description:</span> {contract.description || "—"}</p>
+                        <p><span className="font-medium">Quantity:</span> {contract.quantity || "—"}</p>
+                        <p><span className="font-medium">Period:</span> {contract.start_date || "—"} to {contract.end_date || "—"}</p>
+                        <p><span className="font-medium">Received:</span> {new Date(contract.created_at).toLocaleDateString()}</p>
+                        <div className="flex gap-2 mt-3">
+                          <Button size="sm" onClick={() => handleStatusUpdate(contract.id, "approved")}>
+                            Accept Proposal
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleStatusUpdate(contract.id, "rejected")}>
+                            Decline
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Contracts List */}
           {loading ? (
             <div className="text-center py-12 text-muted-foreground">Loading...</div>
-          ) : contracts.length === 0 ? (
+          ) : otherContracts.length === 0 && incomingProposals.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No contracts yet.</p>
             </div>
-          ) : (
+          ) : otherContracts.length > 0 ? (
             <div className="space-y-4">
-              {contracts.map((contract) => (
+              {role === "farmer" && incomingProposals.length > 0 && (
+                <h2 className="text-lg font-semibold text-foreground mt-2">My Contracts</h2>
+              )}
+              {otherContracts.map((contract) => (
                 <div key={contract.id} className="bg-card rounded-xl border border-border shadow-sm">
                   <button
                     className="w-full flex items-center justify-between p-4 text-left"
@@ -213,7 +348,10 @@ const ContractsPage = () => {
                       <FileText className="w-5 h-5 text-primary" />
                       <div>
                         <p className="font-semibold text-foreground">{contract.title}</p>
-                        <p className="text-xs text-muted-foreground">{contract.crop_type} • ₹{contract.price.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          {contract.counterparty_name} • {contract.crop_type} • ₹{contract.price.toLocaleString()}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -259,7 +397,7 @@ const ContractsPage = () => {
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       </main>
       <Footer />

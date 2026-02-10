@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
-type AppRole = "farmer" | "contractor" | "admin";
+
 
 const AuthPage = () => {
   const [searchParams] = useSearchParams();
@@ -16,7 +16,7 @@ const AuthPage = () => {
   const { signUp, signIn, user } = useAuth();
   const initialMode = searchParams.get("mode") === "register" ? "register" : "login";
   const [mode, setMode] = useState<"login" | "register">(initialMode);
-  const [role, setRole] = useState<AppRole>("farmer");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [form, setForm] = useState({
@@ -52,7 +52,7 @@ const AuthPage = () => {
         }
         const { error } = await signUp(form.email, form.password, {
           full_name: form.fullName,
-          role,
+          role: "farmer",
         });
         if (error) {
           toast({ title: "Registration failed", description: error.message, variant: "destructive" });
@@ -97,37 +97,26 @@ const AuthPage = () => {
             </div>
           </div>
 
-          {/* Role Selection */}
+          {/* Farmer registration only — contractors added by admin, admins created via SQL */}
           {mode === "register" && (
-            <div className="flex items-center justify-center gap-6 mb-6">
-              {(["farmer", "contractor", "admin"] as const).map((r) => (
-                <label key={r} className="flex items-center gap-2 cursor-pointer">
-                  <div
-                    className={`w-4 h-4 rounded-full border-2 ${
-                      role === r ? "border-primary bg-primary" : "border-muted-foreground"
-                    }`}
-                  />
-                  <span className="text-sm font-medium capitalize text-foreground">{r}</span>
-                </label>
-              ))}
-            </div>
+            <p className="text-center text-sm text-muted-foreground mb-4">
+              Register as a <span className="font-semibold text-primary">Farmer</span> to get started.
+            </p>
           )}
 
           <div className="bg-card rounded-xl shadow-lg overflow-hidden">
             <div className="flex border-b border-border">
               <button
                 onClick={() => setMode("login")}
-                className={`flex-1 py-3 text-center font-semibold text-lg transition-colors ${
-                  mode === "login" ? "text-foreground border-b-2 border-primary" : "text-muted-foreground"
-                }`}
+                className={`flex-1 py-3 text-center font-semibold text-lg transition-colors ${mode === "login" ? "text-foreground border-b-2 border-primary" : "text-muted-foreground"
+                  }`}
               >
                 Login
               </button>
               <button
                 onClick={() => setMode("register")}
-                className={`flex-1 py-3 text-center font-semibold text-lg transition-colors ${
-                  mode === "register" ? "text-foreground border-b-2 border-primary" : "text-muted-foreground"
-                }`}
+                className={`flex-1 py-3 text-center font-semibold text-lg transition-colors ${mode === "register" ? "text-foreground border-b-2 border-primary" : "text-muted-foreground"
+                  }`}
               >
                 Register
               </button>

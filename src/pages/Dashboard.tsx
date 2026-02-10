@@ -5,7 +5,8 @@ import Footer from "../components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Home, User, Map, PlusCircle, MessageSquare, Bell, FileText, HelpCircle, ChevronRight, Users, Shield,
+  Home, User, Map, PlusCircle, Bell, FileText, HelpCircle, ChevronRight,
+  Users, Shield, Search, TrendingUp, Wheat, LayoutDashboard,
 } from "lucide-react";
 import summerCrops from "@/assets/summer-crops.jpg";
 import winterCrops from "@/assets/winter-crops.jpg";
@@ -13,25 +14,53 @@ import monsoonCrops from "@/assets/monsoon-crops.jpg";
 
 const Dashboard = () => {
   const { user, profile, role } = useAuth();
-  const [stats, setStats] = useState({ lands: 0, contracts: 0, notifications: 0 });
+  const [stats, setStats] = useState({ lands: 0, contracts: 0, notifications: 0, availableLands: 0, pendingUsers: 0 });
 
   useEffect(() => {
     if (!user) return;
     const fetchStats = async () => {
-      const [landsRes, contractsRes, notifRes] = await Promise.all([
-        supabase.from("lands").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        role === "farmer"
-          ? supabase.from("contracts").select("id", { count: "exact", head: true }).eq("farmer_id", user.id)
-          : role === "contractor"
-          ? supabase.from("contracts").select("id", { count: "exact", head: true }).eq("contractor_id", user.id)
-          : supabase.from("contracts").select("id", { count: "exact", head: true }),
-        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_read", false),
-      ]);
-      setStats({
-        lands: landsRes.count || 0,
-        contracts: contractsRes.count || 0,
-        notifications: notifRes.count || 0,
-      });
+      if (role === "farmer") {
+        const [landsRes, contractsRes, notifRes] = await Promise.all([
+          supabase.from("lands").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+          supabase.from("contracts").select("id", { count: "exact", head: true }).eq("farmer_id", user.id),
+          supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_read", false),
+        ]);
+        setStats({
+          lands: landsRes.count || 0,
+          contracts: contractsRes.count || 0,
+          notifications: notifRes.count || 0,
+          availableLands: 0,
+          pendingUsers: 0,
+        });
+      } else if (role === "contractor") {
+        const [availRes, contractsRes, notifRes] = await Promise.all([
+          supabase.from("lands").select("id", { count: "exact", head: true }).eq("is_lended", false),
+          supabase.from("contracts").select("id", { count: "exact", head: true }).eq("contractor_id", user.id),
+          supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_read", false),
+        ]);
+        setStats({
+          lands: 0,
+          contracts: contractsRes.count || 0,
+          notifications: notifRes.count || 0,
+          availableLands: availRes.count || 0,
+          pendingUsers: 0,
+        });
+      } else if (role === "admin") {
+        const [usersRes, landsRes, contractsRes, pendingRes, notifRes] = await Promise.all([
+          supabase.from("profiles").select("id", { count: "exact", head: true }),
+          supabase.from("lands").select("id", { count: "exact", head: true }),
+          supabase.from("contracts").select("id", { count: "exact", head: true }),
+          supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_approved", false),
+          supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_read", false),
+        ]);
+        setStats({
+          lands: landsRes.count || 0,
+          contracts: contractsRes.count || 0,
+          notifications: notifRes.count || 0,
+          availableLands: usersRes.count || 0, // reusing for total users
+          pendingUsers: pendingRes.count || 0,
+        });
+      }
     };
     fetchStats();
   }, [user, role]);
@@ -49,14 +78,15 @@ const Dashboard = () => {
   const contractorMenu = [
     { icon: Home, label: "Dashboard", href: "/dashboard" },
     { icon: User, label: "My Profile", href: "/profile" },
-    { icon: Map, label: "Browse Lands", href: "/my-lands" },
-    { icon: FileText, label: "Contracts", href: "/contracts" },
+    { icon: Search, label: "Browse Lands", href: "/browse-lands" },
+    { icon: FileText, label: "My Proposals", href: "/contracts" },
     { icon: Bell, label: "Notifications", href: "/notifications" },
     { icon: HelpCircle, label: "Help Centre", href: "/dashboard" },
   ];
 
   const adminMenu = [
     { icon: Home, label: "Dashboard", href: "/dashboard" },
+    { icon: LayoutDashboard, label: "Admin Panel", href: "/admin" },
     { icon: Users, label: "Manage Users", href: "/admin" },
     { icon: FileText, label: "All Contracts", href: "/contracts" },
     { icon: Shield, label: "Approvals", href: "/admin" },
@@ -77,25 +107,38 @@ const Dashboard = () => {
               </div>
               <p className="text-muted-foreground leading-relaxed mb-6">
                 Welcome to your {role === "admin" ? "Admin" : role === "contractor" ? "Contractor" : "Farmer"} Dashboard.
-                Manage your {role === "farmer" ? "lands, contracts" : role === "contractor" ? "contracts, agreements" : "users, contracts"} and stay updated.
+                {role === "farmer" && " Manage your lands, contracts and stay updated."}
+                {role === "contractor" && " Browse available lands, send proposals and manage your contracts."}
+                {role === "admin" && " Oversee users, contracts, and system-wide operations."}
               </p>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                <div className="bg-card rounded-xl p-4 border border-border text-center shadow-sm">
-                  <p className="text-2xl font-bold text-primary">{stats.lands}</p>
-                  <p className="text-xs text-muted-foreground">{role === "farmer" ? "My Lands" : "Available Lands"}</p>
+              {role === "farmer" && (
+                <div className="grid grid-cols-3 gap-4 mb-8">
+                  <StatCard icon={Map} value={stats.lands} label="My Lands" color="text-primary" />
+                  <StatCard icon={FileText} value={stats.contracts} label="Contracts" color="text-primary" />
+                  <StatCard icon={Bell} value={stats.notifications} label="Unread Alerts" color="text-accent" />
                 </div>
-                <div className="bg-card rounded-xl p-4 border border-border text-center shadow-sm">
-                  <p className="text-2xl font-bold text-primary">{stats.contracts}</p>
-                  <p className="text-xs text-muted-foreground">Contracts</p>
-                </div>
-                <div className="bg-card rounded-xl p-4 border border-border text-center shadow-sm">
-                  <p className="text-2xl font-bold text-accent">{stats.notifications}</p>
-                  <p className="text-xs text-muted-foreground">Unread Alerts</p>
-                </div>
-              </div>
+              )}
 
+              {role === "contractor" && (
+                <div className="grid grid-cols-3 gap-4 mb-8">
+                  <StatCard icon={Wheat} value={stats.availableLands} label="Available Lands" color="text-primary" />
+                  <StatCard icon={FileText} value={stats.contracts} label="My Proposals" color="text-primary" />
+                  <StatCard icon={Bell} value={stats.notifications} label="Unread Alerts" color="text-accent" />
+                </div>
+              )}
+
+              {role === "admin" && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                  <StatCard icon={Users} value={stats.availableLands} label="Total Users" color="text-primary" />
+                  <StatCard icon={Map} value={stats.lands} label="Total Lands" color="text-primary" />
+                  <StatCard icon={FileText} value={stats.contracts} label="Contracts" color="text-primary" />
+                  <StatCard icon={Shield} value={stats.pendingUsers} label="Pending Approvals" color="text-accent" />
+                </div>
+              )}
+
+              {/* Quick Actions */}
               {role === "farmer" && (
                 <div className="flex items-center gap-4 mb-8">
                   <Link to="/add-land" className="flex flex-col items-center gap-2 p-4 bg-card rounded-xl shadow-sm border border-border hover:shadow-md transition-shadow cursor-pointer">
@@ -106,6 +149,34 @@ const Dashboard = () => {
                   <Link to="/contracts" className="flex flex-col items-center gap-2 p-4 bg-card rounded-xl shadow-sm border border-border hover:shadow-md transition-shadow cursor-pointer">
                     <FileText className="w-8 h-8 text-primary" />
                     <span className="text-xs font-medium text-foreground">View Contracts</span>
+                  </Link>
+                </div>
+              )}
+
+              {role === "contractor" && (
+                <div className="flex items-center gap-4 mb-8">
+                  <Link to="/browse-lands" className="flex flex-col items-center gap-2 p-4 bg-card rounded-xl shadow-sm border border-border hover:shadow-md transition-shadow cursor-pointer">
+                    <Search className="w-8 h-8 text-primary" />
+                    <span className="text-xs font-medium text-foreground">Browse Lands</span>
+                  </Link>
+                  <ChevronRight className="w-5 h-5 text-primary" />
+                  <Link to="/contracts" className="flex flex-col items-center gap-2 p-4 bg-card rounded-xl shadow-sm border border-border hover:shadow-md transition-shadow cursor-pointer">
+                    <FileText className="w-8 h-8 text-primary" />
+                    <span className="text-xs font-medium text-foreground">My Proposals</span>
+                  </Link>
+                </div>
+              )}
+
+              {role === "admin" && (
+                <div className="flex items-center gap-4 mb-8">
+                  <Link to="/admin" className="flex flex-col items-center gap-2 p-4 bg-card rounded-xl shadow-sm border border-border hover:shadow-md transition-shadow cursor-pointer">
+                    <LayoutDashboard className="w-8 h-8 text-primary" />
+                    <span className="text-xs font-medium text-foreground">Admin Panel</span>
+                  </Link>
+                  <ChevronRight className="w-5 h-5 text-primary" />
+                  <Link to="/contracts" className="flex flex-col items-center gap-2 p-4 bg-card rounded-xl shadow-sm border border-border hover:shadow-md transition-shadow cursor-pointer">
+                    <FileText className="w-8 h-8 text-primary" />
+                    <span className="text-xs font-medium text-foreground">All Contracts</span>
                   </Link>
                 </div>
               )}
@@ -150,5 +221,14 @@ const Dashboard = () => {
     </div>
   );
 };
+
+// Extracted stat card for reuse
+const StatCard = ({ icon: Icon, value, label, color }: { icon: React.ElementType; value: number; label: string; color: string }) => (
+  <div className="bg-card rounded-xl p-4 border border-border text-center shadow-sm">
+    <Icon className={`w-5 h-5 mx-auto mb-1 ${color}`} />
+    <p className="text-2xl font-bold text-primary">{value}</p>
+    <p className="text-xs text-muted-foreground">{label}</p>
+  </div>
+);
 
 export default Dashboard;
